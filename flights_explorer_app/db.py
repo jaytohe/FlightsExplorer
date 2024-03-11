@@ -17,8 +17,15 @@ def get_db():
     return g.db
 
 
+
+
 def get_spark():
     if "spark" not in g:
         print("creating spark session")
         g.spark =  SparkSession.builder.master("local").appName("FlightsExplorer").getOrCreate()
     return g.spark
+
+
+def execute_query(sql_query_string, collect=True):
+    get_db().createOrReplaceGlobalTempView("flights_db")
+    return get_spark().sql(sql_query_string).collect() if collect else get_spark().sql(sql_query_string)

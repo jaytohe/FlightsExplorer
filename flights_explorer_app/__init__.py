@@ -7,6 +7,8 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         DATABASE=os.path.join(app.instance_path, 'data', 'airline.parquet'),
+        CANCEL_CODES=os.path.join(app.instance_path, 'data', 'L_CANCELLATION.parquet')
+
     )
 
     if test_config is None:
@@ -23,9 +25,14 @@ def create_app(test_config=None):
     # a simple page that says hello
     @app.route('/hello')
     def hello():
-        return 'Hello, Worl!d!'
+        return 'Hello, World!'
     
     from . import part1
     app.register_blueprint(part1.bp)
+
+    ## Register Spark Connection Manager
+    from .Flask_Spark import SparkConnectionManager
+
+    flask_spark = SparkConnectionManager(app)
 
     return app
