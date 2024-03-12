@@ -1,6 +1,7 @@
 from flask import (
     Blueprint, request, current_app
 )
+from flask.json import jsonify
 from .utils import json_required_params
 #from .db import get_db, get_spark, execute_query
 
@@ -18,23 +19,25 @@ def num_flights_took_place():
     A function to calculate the number of flights that took place (i.e. were NOT cancelled) within a specified range of years or in specific years.
     Takes no parameters.
     Returns a dictionary containing the years, a boolean indicating if a range was used, and the number of flights that took place, along with an HTTP status code.
+
     """
-    get_db = current_app.extensions['spark_connection_manager'].get_db
-    get_spark = current_app.extensions['spark_connection_manager'].get_spark
-    execute_query = current_app.extensions['spark_connection_manager'].execute_query
+
+    flights_db = current_app.extensions['spark_connection_manager'].flights_db
 
     data = request.get_json()
     years = data["years"]
     isRange = data["isRange"]
-    flights_took_place = get_db().where(
+    results_list = flights_db.where(
         (F.col('Year').between(years[0], years[1]) if isRange else F.col('Year').isin(years)) 
         & (F.col('Cancelled') == 0)
-    ).count()
-    return {
-        "years": years,
-        "isRange": isRange,
-        "flights_took_place": flights_took_place
-    }, 200
+    ).groupby("Year").count().collect()
+    return jsonify([row.asDict() for row in results_list]), 200
+ #   [
+ #     {
+ #      "year" : xxxx,
+ #      "num_flights" : yyyy,
+ #     },
+ #   ]
 
 @bp.route('/num_flights_ontime_early_late', methods=('POST',))
 @json_required_params({"year": int})
@@ -42,9 +45,6 @@ def num_flights_ontime_early_late():
     """
     Retrieves the number of flights that were on time, early, and late for a given year.
     """
-
-    get_db = current_app.extensions['spark_connection_manager'].get_db
-    get_spark = current_app.extensions['spark_connection_manager'].get_spark
     execute_query = current_app.extensions['spark_connection_manager'].execute_query
 
     data = request.get_json()
@@ -67,7 +67,7 @@ def num_flights_ontime_early_late():
             "num_ontime": 0
         }, 200
     else:
-        return next(iter(results_list)).asDict() #get first row from list output and convert to dict
+        return next(iter(results_list)).asDict(), 200 #get first row from list output and convert to dict
     
     
 
@@ -77,17 +77,14 @@ def get_top_cancel_reason(year):
     Retrieves the top cancellation reason for a given year.
     """
 
-    get_db = current_app.extensions['spark_connection_manager'].get_db
-    get_spark = current_app.extensions['spark_connection_manager'].get_spark
-    execute_query = current_app.extensions['spark_connection_manager'].execute_query
-
-    cancel_codes = get_spark().read.parquet(current_app.config["CANCEL_CODES"])
+    flights_db = current_app.extensions['spark_connection_manager'].flights_db
+    cancel_codes = current_app.extensions['spark_connection_manager'].cancel_codes
 
     #join cancelation code description table with flights table on code
     # filter by provided year
     # count how many times each code appears and save it as countDesc
     # sort in descending order.
-    results_list = get_db() \
+    results_list = flights_db \
         .join(cancel_codes, F.col("CancellationCode") == cancel_codes["Code"]) \
         .where(F.col("Year") == year).groupby(["Year", "Description"]) \
         .agg(F.count(F.col("Description")).alias("countDesc")) \
@@ -99,12 +96,30 @@ def get_top_cancel_reason(year):
             "year": year,
             "cancellation_reason": "Unknown",
             "num_cancelled": 0
-        }
+        }, 200
     
     else:
-        return next(iter(results_list)).asDict()
+        return next(iter(results_list)).asDict(), 200
 
-"""
 
-"""
+@bp.route('/get_top_three_punctual_airlines', methods=('GET',))
+def get_top_three_punctual_airlines():
+    execute_query = current_app.extensions['spark_connection_manager'].execute_query
+    
+    results_list = execute_query("""
+    SELECT year, SPLIT(airport_desc, ":")[0] as airport_location, TRIM(SPLIT(airport_desc, ":")[1]) as airport_name, proportion_on_time, punctuality_rank
+    FROM (
+        SELECT
+            Year AS year,
+            Description AS airport_desc, 
+            AVG(CASE WHEN DepDel15 = 0 THEN 1 ELSE 0 END) AS proportion_on_time,
+            ROW_NUMBER() OVER (PARTITION BY Year ORDER BY AVG(CASE WHEN DepDel15 = 0 THEN 1 ELSE 0 END) DESC) AS punctuality_rank
+        FROM global_temp.flights_db
+        JOIN global_temp.airport_names ON global_temp.flights_db.OriginAirportID = global_temp.airport_names.Code
+        WHERE YEAR IN (1987, 1997, 2007, 2017)
+        GROUP BY Year, Description
+    ) AS ranks
+    WHERE punctuality_rank <= 3;
+    """)
 
+    return jsonify([row.asDict() for row in results_list]), 200

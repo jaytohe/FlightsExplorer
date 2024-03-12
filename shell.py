@@ -8,4 +8,5 @@ flights_db.createOrReplaceGlobalTempView("flights_db")
 cancel_codes = spark.read.parquet("instance/data/L_CANCELLATION.parquet")
 cancel_codes.createOrReplaceGlobalTempView("cancel_codes")
 
-
+airport_names = spark.read.parquet("instance/data/L_AIRPORT_ID.parquet")
+airport_names.createOrReplaceGlobalTempView("airport_names")
