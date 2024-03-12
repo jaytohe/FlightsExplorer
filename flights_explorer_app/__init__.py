@@ -7,8 +7,8 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         DATABASE=os.path.join(app.instance_path, 'data', 'airline.parquet'),
-        CANCEL_CODES=os.path.join(app.instance_path, 'data', 'L_CANCELLATION.parquet')
-
+        CANCEL_CODES=os.path.join(app.instance_path, 'data', 'L_CANCELLATION.parquet'),
+        AIRPORT_NAMES=os.path.join(app.instance_path, 'data', 'L_AIRPORT_ID.parquet')
     )
 
     if test_config is None:
