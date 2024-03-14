@@ -54,7 +54,7 @@ def num_flights_ontime_early_late():
             Year as year,
             AVG(CASE WHEN DepDelayMinutes = 0 THEN 1 ELSE 0 END) AS num_early,
             AVG(DepDel15) AS num_late,
-            AVG(CASE WHEN (DepDel15 == 0) AND (DepDelayMinutes > 0) THEN 1 ELSE 0 END) AS num_ontime
+            AVG(CASE WHEN (DepDelayMinutes > 0) AND (DepDelayMinutes < 15) THEN 1 ELSE 0 END) AS num_ontime
         FROM global_temp.flights_db
         WHERE DepDelayMinutes IS NOT NULL AND DepDel15 IS NOT NULL AND Year = {year}
         GROUP BY Year;
@@ -88,7 +88,7 @@ def get_top_cancel_reason(year):
         .join(cancel_codes, F.col("CancellationCode") == cancel_codes["Code"]) \
         .where(F.col("Year") == year).groupby(["Year", "Description"]) \
         .agg(F.count(F.col("Description")).alias("countDesc")) \
-        .sort("countDesc", ascending=False).collect()
+        .sort("countDesc", ascending=False).collect() #TODO: Add limit(1) to abide to task exactly.
 
 
     if len(results_list) == 0:
