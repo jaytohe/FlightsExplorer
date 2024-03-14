@@ -107,13 +107,13 @@ def get_top_three_punctual_airlines():
     execute_query = current_app.extensions['spark_connection_manager'].execute_query
     
     results_list = execute_query("""
-    SELECT year, SPLIT(airport_desc, ":")[0] as airport_location, TRIM(SPLIT(airport_desc, ":")[1]) as airport_name, proportion_on_time, punctuality_rank
+    SELECT year, SPLIT(airport_desc, ":")[0] as airport_location, TRIM(SPLIT(airport_desc, ":")[1]) as airport_name, total_punctual_takeoffs, punctuality_rank
     FROM (
         SELECT
             Year AS year,
             Description AS airport_desc, 
-            AVG(CASE WHEN DepDel15 = 0 THEN 1 ELSE 0 END) AS proportion_on_time,
-            ROW_NUMBER() OVER (PARTITION BY Year ORDER BY AVG(CASE WHEN DepDel15 = 0 THEN 1 ELSE 0 END) DESC) AS punctuality_rank
+            SUM(CASE WHEN DepDelay = 0 THEN 1 ELSE 0 END) AS total_punctual_takeoffs,
+            ROW_NUMBER() OVER (PARTITION BY Year ORDER BY SUM(CASE WHEN DepDelay = 0 THEN 1 ELSE 0 END) DESC) AS punctuality_rank
         FROM global_temp.flights_db
         JOIN global_temp.airport_names ON global_temp.flights_db.OriginAirportID = global_temp.airport_names.Code
         WHERE YEAR IN (1987, 1997, 2007, 2017)
