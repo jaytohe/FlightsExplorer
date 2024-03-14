@@ -113,7 +113,7 @@ def get_top_three_punctual_airlines():
             Year AS year,
             Description AS airport_desc, 
             AVG(CASE WHEN DepDelay = 0 THEN 1 ELSE 0 END) AS proportion_punctual_takeoffs,
-            ROW_NUMBER() OVER (PARTITION BY Year ORDER BY SUM(CASE WHEN DepDelay = 0 THEN 1 ELSE 0 END) DESC) AS punctuality_rank
+            ROW_NUMBER() OVER (PARTITION BY Year ORDER BY AVG(CASE WHEN DepDelay = 0 THEN 1 ELSE 0 END) DESC) AS punctuality_rank
         FROM global_temp.flights_db
         JOIN global_temp.airport_names ON global_temp.flights_db.OriginAirportID = global_temp.airport_names.Code
         WHERE YEAR IN (1987, 1997, 2007, 2017) AND DepDelay IS NOT NULL
