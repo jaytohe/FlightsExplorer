@@ -135,7 +135,7 @@ def get_top_three_worst_airlines():
     airline_names = current_app.extensions['spark_connection_manager'].airline_names
 
     results_list = flights_db \
-    .join(airline_names, F.col("Reporting_Airline") == airline_names["Code"])\
+    .join(airline_names, F.col("DOT_ID_Reporting_Airline") == airline_names["Code"])\
     .where((F.col("Year") >= 1987) & (F.col("Year") <= 1999)) \
     .groupby("Description") \
     .agg({"Cancelled" : "avg", "DepDel15" : "avg", "ArrDel15" : "avg"}) \
