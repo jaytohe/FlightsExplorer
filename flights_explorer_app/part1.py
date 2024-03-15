@@ -77,6 +77,10 @@ def get_top_cancel_reason(year):
     Retrieves the top cancellation reason for a given year.
     """
 
+
+    if (year < 1987) or (year > 2020):
+        return {}, 200
+
     flights_db = current_app.extensions['spark_connection_manager'].flights_db
     cancel_codes = current_app.extensions['spark_connection_manager'].cancel_codes
 
@@ -123,3 +127,23 @@ def get_top_three_punctual_airlines():
     """)
 
     return jsonify([row.asDict() for row in results_list]), 200
+
+
+@bp.route('/get_top_three_worst_airlines', methods=('GET',))
+def get_top_three_worst_airlines():
+    flights_db = current_app.extensions['spark_connection_manager'].flights_db
+    airline_names = current_app.extensions['spark_connection_manager'].airline_names
+
+    results_list = flights_db \
+    .join(airline_names, F.col("Reporting_Airline") == airline_names["Code"])\
+    .where((F.col("Year") >= 1987) & (F.col("Year") <= 1999)) \
+    .groupby("Description") \
+    .agg({"Cancelled" : "avg", "DepDel15" : "avg", "ArrDel15" : "avg"}) \
+    .withColumn("performance_penalty", 4*F.col("avg(Cancelled)") + 2*F.col("avg(DepDel15)") + 3*F.col("avg(ArrDel15)")) \
+    .withColumnRenamed("Description", "airline_name") \
+    .sort("performance_penalty", ascending=False) \
+    .limit(3) \
+    .collect()
+
+    return jsonify([row.asDict() for row in results_list]), 200
+
