@@ -8,7 +8,8 @@ def create_app(test_config=None):
     app.config.from_mapping(
         DATABASE=os.path.join(app.instance_path, 'data', 'airline.parquet'),
         CANCEL_CODES=os.path.join(app.instance_path, 'data', 'L_CANCELLATION.parquet'),
-        AIRPORT_NAMES=os.path.join(app.instance_path, 'data', 'L_AIRPORT_ID.parquet')
+        AIRPORT_NAMES=os.path.join(app.instance_path, 'data', 'L_AIRPORT_ID.parquet'),
+        AIRLINE_NAMES=os.path.join(app.instance_path, 'data', 'L_AIRLINE_ID.parquet')
     )
 
     if test_config is None:

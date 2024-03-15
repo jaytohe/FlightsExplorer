@@ -15,11 +15,13 @@ class SparkConnectionManager:
         # Supplementary tables used
         self.cancel_codes = self.spark.read.parquet(app.config["CANCEL_CODES"])
         self.airport_names = self.spark.read.parquet(app.config["AIRPORT_NAMES"])
+        self.airline_names = self.spark.read.parquet(app.config["AIRLINE_NAMES"])
 
         #Create SQL table global views
         self.flights_db.createOrReplaceGlobalTempView("flights_db")
         self.cancel_codes.createOrReplaceGlobalTempView("cancel_codes")
         self.airport_names.createOrReplaceGlobalTempView("airport_names")
+        self.airline_names.createOrReplaceGlobalTempView("airline_names")
     
         # register extension with app
         app.extensions = getattr(app, 'extensions', {})
