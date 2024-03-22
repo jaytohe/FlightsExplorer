@@ -5,8 +5,6 @@ from flask.json import jsonify
 from .utils import json_required_params
 #from .db import get_db, get_spark, execute_query
 
-
-
 import pyspark.sql.functions as F # type: ignore
 
 bp = Blueprint('part1', __name__, url_prefix='/part1')
@@ -26,6 +24,7 @@ def num_flights_took_place():
 
     data = request.get_json()
     years = data["years"]
+    years = sorted(years)
     isRange = data["isRange"]
     results_list = flights_db.where(
         (F.col('Year').between(years[0], years[1]) if isRange else F.col('Year').isin(years)) 
@@ -39,16 +38,16 @@ def num_flights_took_place():
  #     },
  #   ]
 
-@bp.route('/num_flights_ontime_early_late', methods=('POST',))
-@json_required_params({"year": int})
-def num_flights_ontime_early_late():
+@bp.route('/num_flights_ontime_early_late/<int:year>', methods=('GET',))
+#@json_required_params({"year": int})
+def num_flights_ontime_early_late(year):
     """
     Retrieves the number of flights that were on time, early, and late for a given year.
     """
     execute_query = current_app.extensions['spark_connection_manager'].execute_query
 
-    data = request.get_json()
-    year = data["year"]
+#    data = request.get_json()
+#    year = data["year"]
     results_list = execute_query(f"""
         SELECT
             Year as year,
@@ -79,7 +78,11 @@ def get_top_cancel_reason(year):
 
 
     if (year < 1987) or (year > 2020):
-        return {}, 200
+        return {
+            "year": year,
+            "cancellation_reason": "Unknown",
+            "count": 0
+        }, 200
 
     flights_db = current_app.extensions['spark_connection_manager'].flights_db
     cancel_codes = current_app.extensions['spark_connection_manager'].cancel_codes
@@ -91,15 +94,16 @@ def get_top_cancel_reason(year):
     results_list = flights_db \
         .join(cancel_codes, F.col("CancellationCode") == cancel_codes["Code"]) \
         .where(F.col("Year") == year).groupby(["Year", "Description"]) \
-        .agg(F.count(F.col("Description")).alias("countDesc")) \
-        .sort("countDesc", ascending=False).collect() #TODO: Add limit(1) to abide to task exactly.
+        .agg(F.count(F.col("Description")).alias("count")) \
+        .withColumnsRenamed({"Year" : "year", "Description" : "cancellation_reason"}) \
+        .sort("count", ascending=False).collect() #TODO: Add limit(1) to abide to task exactly.
 
 
     if len(results_list) == 0:
         return {
             "year": year,
             "cancellation_reason": "Unknown",
-            "num_cancelled": 0
+            "count": 0
         }, 200
     
     else:
@@ -139,7 +143,7 @@ def get_top_three_worst_airlines():
     .where((F.col("Year") >= 1987) & (F.col("Year") <= 1999)) \
     .groupby("Description") \
     .agg({"Cancelled" : "avg", "DepDel15" : "avg", "ArrDel15" : "avg"}) \
-    .withColumn("performance_penalty", 4*F.col("avg(Cancelled)") + 2*F.col("avg(DepDel15)") + 3*F.col("avg(ArrDel15)")) \
+    .withColumn("performance_penalty", 5*F.col("avg(Cancelled)") + 2*F.col("avg(DepDel15)") + 3*F.col("avg(ArrDel15)")) \
     .withColumnRenamed("Description", "airline_name") \
     .sort("performance_penalty", ascending=False) \
     .limit(3) \
