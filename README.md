@@ -13,7 +13,7 @@ The server queries the dataset using Apache Spark ([PySpark](https://spark.apach
 
 A custom Flask module was developed for PySpark, present in *flask_flights_explorer/Flask_Spark.py*, to be able to re-use the same Spark Session for different queries; otherwise the Spark session is lost after a request is handled due to [Flask's ephemeral request context](https://flask.palletsprojects.com/en/3.0.x/reqcontext/) lifecycle.
 
-The client, effectively an R web-app, sends asynchronous GET/POST requests to the server and displays the results neatly using the ggplot2 and the [Shiny](https://shiny.posit.co/) framework.
+The client, effectively an R web-app, sends asynchronous GET/POST requests to the server and displays the results neatly using the ggplot2 library and the [Shiny](https://shiny.posit.co/) framework.
 
 
 # Features
